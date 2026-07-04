@@ -1,0 +1,4 @@
+vector_db/
+downloads/
+venv/
+.env

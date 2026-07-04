@@ -1,0 +1,44 @@
+# ───────────────────────────────────────────────────────────────
+# AI Meeting Assistant
+# Recommended: Python 3.11
+# ───────────────────────────────────────────────────────────────
+
+# Audio / Video
+yt-dlp>=2025.1.0
+pydub>=0.25.1
+ffmpeg-python>=0.2.0
+
+# Speech-to-Text
+faster-whisper>=1.1.0
+
+# Translation
+deep-translator>=1.11.4
+
+# LLM
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langchain-huggingface>=0.1.0
+langchain-mistralai>=0.2.0
+mistralai>=1.9.10
+
+# RAG
+chromadb>=1.0.15
+sentence-transformers>=5.0.0
+huggingface-hub>=0.34.4
+tiktoken>=0.9.0
+
+# Streamlit
+streamlit>=1.49.0
+streamlit-extras>=0.7.8
+watchdog>=6.0.0
+
+# Export
+reportlab>=4.4.3
+fpdf2>=2.8.4
+
+# Utilities
+python-dotenv>=1.1.1
+numpy>=2.3.2
+requests>=2.32.5
+tqdm>=4.67.1
