@@ -1,21 +1,43 @@
+import shutil
+import platform
 import yt_dlp
 from pydub import AudioSegment
 import os
 
-# FFmpeg setup
-AudioSegment.converter = r"C:\ffmpeg\bin\ffmpeg.exe"
-AudioSegment.ffprobe = r"C:\ffmpeg\bin\ffprobe.exe"
+# --- FFmpeg setup (cross-platform) ---
+def get_ffmpeg_paths():
+    ffmpeg_path = shutil.which("ffmpeg")
+    ffprobe_path = shutil.which("ffprobe")
 
+    if ffmpeg_path and ffprobe_path:
+        return ffmpeg_path, ffprobe_path
+
+    # Fallback for local Windows dev if not on PATH
+    if platform.system() == "Windows":
+        win_ffmpeg = r"C:\ffmpeg\bin\ffmpeg.exe"
+        win_ffprobe = r"C:\ffmpeg\bin\ffprobe.exe"
+        if os.path.exists(win_ffmpeg):
+            return win_ffmpeg, win_ffprobe
+
+    raise FileNotFoundError(
+        "ffmpeg/ffprobe not found. On Streamlit Cloud, add a packages.txt "
+        "file with 'ffmpeg' in it. Locally, install ffmpeg and ensure it's on PATH."
+    )
+
+FFMPEG_PATH, FFPROBE_PATH = get_ffmpeg_paths()
+
+AudioSegment.converter = FFMPEG_PATH
+AudioSegment.ffprobe = FFPROBE_PATH
 
 DOWNLOAD_DIR = 'downloads'
-os.makedirs(DOWNLOAD_DIR,exist_ok = True)
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-def download_youtube_audio(url :str) ->str:
+def download_youtube_audio(url: str) -> str:
     output_path = os.path.join(DOWNLOAD_DIR, "%(title)s.%(ext)s")
     ydl_opts = {
         "format": "bestaudio/best",
         "outtmpl": output_path,
-        "ffmpeg_location": r"C:\ffmpeg\bin",
+        "ffmpeg_location": os.path.dirname(FFMPEG_PATH),  # yt-dlp wants a directory
         "postprocessors": [
             {
                 "key": "FFmpegExtractAudio",
