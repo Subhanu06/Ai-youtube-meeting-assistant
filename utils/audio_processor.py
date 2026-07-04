@@ -4,7 +4,6 @@ import yt_dlp
 from pydub import AudioSegment
 import os
 
-# --- FFmpeg setup (cross-platform) ---
 def get_ffmpeg_paths():
     ffmpeg_path = shutil.which("ffmpeg")
     ffprobe_path = shutil.which("ffprobe")
@@ -12,11 +11,10 @@ def get_ffmpeg_paths():
     if ffmpeg_path and ffprobe_path:
         return ffmpeg_path, ffprobe_path
 
-    # Fallback for local Windows dev if not on PATH
     if platform.system() == "Windows":
         win_ffmpeg = r"C:\ffmpeg\bin\ffmpeg.exe"
         win_ffprobe = r"C:\ffmpeg\bin\ffprobe.exe"
-        if os.path.exists(win_ffmpeg):
+        if os.path.exists(win_ffmpeg) and os.path.exists(win_ffprobe):
             return win_ffmpeg, win_ffprobe
 
     raise FileNotFoundError(
@@ -28,6 +26,22 @@ FFMPEG_PATH, FFPROBE_PATH = get_ffmpeg_paths()
 
 AudioSegment.converter = FFMPEG_PATH
 AudioSegment.ffprobe = FFPROBE_PATH
+
+# --- Critical fix ---
+# pydub's internal get_prober_name()/get_encoder_name() ignore
+# AudioSegment.converter/ffprobe entirely and return bare "ffmpeg"/"ffprobe"
+# strings, relying on PATH resolution at subprocess.Popen call-time.
+# Monkey-patch them to always return our known-good absolute paths instead,
+# so it works regardless of the system PATH state.
+import pydub.utils as _pydub_utils
+_pydub_utils.get_prober_name = lambda: FFPROBE_PATH
+_pydub_utils.get_encoder_name = lambda: FFMPEG_PATH
+
+# Still add to PATH as a belt-and-suspenders fallback for any other
+# subprocess (e.g. yt-dlp) that does its own PATH-based lookup.
+ffmpeg_dir = os.path.dirname(FFMPEG_PATH)
+if ffmpeg_dir not in os.environ["PATH"]:
+    os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ["PATH"]
 
 DOWNLOAD_DIR = 'downloads'
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -56,9 +70,16 @@ def download_youtube_audio(url: str) -> str:
 
 def convert_to_wav(input_path: str) -> str:
     """Convert any audio/video file to WAV format using pydub."""
+    print(f"[DEBUG] Attempting to convert: {input_path}")
+    print(f"[DEBUG] Absolute path: {os.path.abspath(input_path)}")
+    print(f"[DEBUG] File exists: {os.path.exists(input_path)}")
+
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
     output_path = os.path.splitext(input_path)[0] + "_converted.wav"
     audio = AudioSegment.from_file(input_path)
-    audio = audio.set_channels(1).set_frame_rate(16000) #16khz
+    audio = audio.set_channels(1).set_frame_rate(16000)
     audio.export(output_path, format="wav")
     return output_path
 

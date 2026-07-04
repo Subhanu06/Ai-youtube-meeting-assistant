@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import time
 from dotenv import load_dotenv
@@ -6,6 +7,7 @@ from core.transcriber import transcribe_all
 from core.summarize import summarize, generate_title
 from core.extractor import extract_action_items, extract_key_decisions, extract_questions
 from core.rag_engine import build_rag_chain, ask_question
+import traceback
 
 load_dotenv()
 
@@ -400,7 +402,15 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown('<span class="badge badge-purple">Input</span>', unsafe_allow_html=True)
-    source = st.text_input("YouTube URL or File Path", placeholder="https://youtube.com/watch?v=... or /path/to/file.mp4")
+
+    uploaded_file = st.file_uploader(
+        "Upload a video/audio file",
+        type=["mp4", "mov", "mkv", "avi", "mp3", "wav", "m4a"],
+    )
+    source_url = st.text_input(
+        "…or paste a YouTube URL / file path",
+        placeholder="https://youtube.com/watch?v=... or /path/to/file.mp4",
+    )
     language = st.selectbox("Language", ["english", "hinglish"], index=0)
     run_btn = st.button("⚡  Analyse", use_container_width=True)
 
@@ -431,8 +441,20 @@ st.markdown("---")
 
 # ── Run Pipeline ────────────────────────────────────────────────────────────────
 if run_btn:
-    if not source.strip():
-        st.error("Please enter a YouTube URL or file path.")
+    source = None
+
+    if uploaded_file is not None:
+        downloads_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "downloads")
+        os.makedirs(downloads_dir, exist_ok=True)
+        saved_path = os.path.join(downloads_dir, uploaded_file.name)
+        with open(saved_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+        source = saved_path
+    elif source_url.strip():
+        source = source_url.strip()
+
+    if not source:
+        st.error("Please upload a file or paste a YouTube URL / file path.")
     else:
         st.session_state.pipeline_done = False
         st.session_state.result = None
@@ -514,7 +536,7 @@ if run_btn:
                 update_step(failed_key, "error")
             st.session_state.pipeline_total_time = time.time() - st.session_state.pipeline_t0
             st.error(f"❌ Pipeline failed during **{failed_key or 'processing'}**: {e}")
-
+            st.code(traceback.format_exc())
 # ── Results ──────────────────────────────────────────────────────────────────────
 if st.session_state.result:
     r = st.session_state.result
@@ -625,7 +647,7 @@ else:
             Ready to Analyse
         </div>
         <div style="color:var(--text-muted);font-size:0.85rem;max-width:380px;line-height:1.7">
-            Paste a YouTube URL or local file path in the sidebar, choose your language, and hit <strong>Analyse</strong> to get started.
+            Upload a video/audio file or paste a YouTube URL in the sidebar, choose your language, and hit <strong>Analyse</strong> to get started.
         </div>
         <div style="margin-top:2rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
             <span class="badge badge-purple">Transcription</span>
@@ -633,3 +655,5 @@ else:
             <span class="badge badge-green">RAG Chat</span>
         </div>
     </div>""", unsafe_allow_html=True)
+
+  # <-- add this line temporarily
